@@ -100,7 +100,7 @@
             { distance: 300, text: "Tu es une légende! 🏆", color: '#FFD700' },
             { distance: 500, text: "CHAMPION! 👑", color: '#FF1744' },
             { distance: 750, text: "INARRÊTABLE! 💎", color: '#00BCD4' },
-            { distance: 1000, text: "DIEU DU JARDIN! ⚡", color: '#FF4081' }
+            { distance: 1000, text: "ROI DE LA FÊTE! ⚡", color: '#FF4081' }
         ];
 
         // État des touches
@@ -552,14 +552,17 @@
         function updatePlayer() {
             if (gameState !== 'playing') return;
 
+            // Accélération progressive sans limite
+            const speedBonus = distanceTraveled / 3000; // Augmente indéfiniment
+
             player.velocityX = 0;
 
             if (keys.left) {
-                player.velocityX = -PLAYER_MOVE_SPEED;
+                player.velocityX = -(PLAYER_MOVE_SPEED + speedBonus);
                 player.direction = -1;
             }
             if (keys.right) {
-                player.velocityX = PLAYER_MOVE_SPEED;
+                player.velocityX = PLAYER_MOVE_SPEED + speedBonus;
                 player.direction = 1;
             }
 
@@ -581,8 +584,8 @@
         function updateGirl() {
             if (gameState !== 'playing') return;
 
-            // Difficulté progressive - la fille accélère avec la distance
-            const speedBonus = Math.min(distanceTraveled / 5000, 0.5); // Max +50% vitesse
+            // Accélération progressive SANS LIMITE
+            const speedBonus = distanceTraveled / 3000; // Augmente indéfiniment
 
             if (girl.x >= girl.nextSpeedChange) {
                 girl.speedMultiplier = 0.7 + Math.random() * 0.8 + speedBonus;
@@ -591,13 +594,27 @@
 
             girl.velocityX = GIRL_BASE_SPEED * girl.speedMultiplier;
 
-            const lookAhead = girl.x + 80;
-            if (isAboveGap(lookAhead) && girl.onGround) {
+            // Détection des trous AMÉLIORÉE avec lookAhead adaptatif
+            // Plus elle va vite, plus elle regarde loin
+            const lookAheadDistance = 100 + girl.velocityX * 15;
+
+            // Vérifier plusieurs points devant elle pour être sûr
+            let gapDetected = false;
+            for (let i = 0; i < 5; i++) {
+                const checkPoint = girl.x + 50 + (i * 30);
+                if (isAboveGap(checkPoint)) {
+                    gapDetected = true;
+                    break;
+                }
+            }
+
+            if (gapDetected && girl.onGround) {
                 girl.velocityY = GIRL_JUMP_FORCE;
             }
 
+            // Sauter devant les murs
             walls.forEach(wall => {
-                if (wall.x > girl.x && wall.x < girl.x + 100 && girl.onGround) {
+                if (wall.x > girl.x && wall.x < girl.x + lookAheadDistance && girl.onGround) {
                     girl.velocityY = GIRL_JUMP_FORCE;
                 }
             });
