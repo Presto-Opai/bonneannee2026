@@ -26,7 +26,7 @@
             border: 4px solid #5D4037;
             border-radius: 10px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            background: #7EC850;
+            background: #87CEEB;
         }
 
         .controls {
@@ -117,26 +117,31 @@
             onGround: false,
             direction: 1,
             speedMultiplier: 1,
-            nextSpeedChange: 100,
-            nextJump: 200
+            nextSpeedChange: 100
         };
 
         // Terrain (segments de sol et trous)
         let terrainSegments = [];
         let platforms = [];
         let walls = [];
+        let gaps = []; // Stocker les positions des trous
         let nextSegmentX = 0;
+
+        // Éléments décoratifs d'arrière-plan
+        let backgroundElements = [];
 
         // Génération initiale du terrain
         function initTerrain() {
             terrainSegments = [];
             platforms = [];
             walls = [];
+            gaps = [];
+            backgroundElements = [];
             nextSegmentX = 0;
 
             // Créer le terrain initial (zone de départ sûre)
             for (let i = 0; i < 5; i++) {
-                generateTerrainSegment(false); // Pas de trous au début
+                generateTerrainSegment(false);
             }
 
             // Continuer avec terrain normal
@@ -152,19 +157,22 @@
             if (allowGaps && Math.random() < 0.3) {
                 // Créer un trou
                 const gapWidth = 80 + Math.random() * 120;
+                const gapStart = nextSegmentX;
+                const gapEnd = nextSegmentX + gapWidth;
 
-                // Ajouter des plateformes au-dessus du trou
-                if (Math.random() < 0.7) {
-                    const platformCount = 1 + Math.floor(Math.random() * 2);
-                    for (let i = 0; i < platformCount; i++) {
-                        platforms.push({
-                            x: nextSegmentX + gapWidth * (i + 1) / (platformCount + 1) - 40,
-                            y: GROUND_LEVEL - 80 - Math.random() * 100,
-                            width: 80 + Math.random() * 60,
-                            height: 20,
-                            color: '#8D6E63'
-                        });
-                    }
+                // Enregistrer le trou
+                gaps.push({ start: gapStart, end: gapEnd });
+
+                // TOUJOURS ajouter des plateformes au-dessus des trous
+                const platformCount = 2 + Math.floor(Math.random() * 2);
+                for (let i = 0; i < platformCount; i++) {
+                    platforms.push({
+                        x: gapStart + gapWidth * (i + 1) / (platformCount + 1) - 50,
+                        y: GROUND_LEVEL - 100 - Math.random() * 80,
+                        width: 90 + Math.random() * 50,
+                        height: 20,
+                        color: '#8D6E63'
+                    });
                 }
 
                 nextSegmentX += gapWidth;
@@ -190,14 +198,66 @@
                 }
 
                 // Parfois ajouter des barrières verticales
-                if (Math.random() < 0.15 && segmentWidth > 200) {
+                if (Math.random() < 0.15 && segmentWidth > 250) {
+                    const wallX = nextSegmentX + 100 + Math.random() * (segmentWidth - 200);
+
+                    // TOUJOURS ajouter des plateformes avant la barrière
+                    const platformsBeforeWall = 2 + Math.floor(Math.random() * 2);
+                    for (let i = 0; i < platformsBeforeWall; i++) {
+                        platforms.push({
+                            x: wallX - 200 - i * 100,
+                            y: GROUND_LEVEL - 120 - i * 60,
+                            width: 90,
+                            height: 20,
+                            color: '#8D6E63'
+                        });
+                    }
+
                     walls.push({
-                        x: nextSegmentX + 50 + Math.random() * (segmentWidth - 150),
+                        x: wallX,
                         y: GROUND_LEVEL - 150,
                         width: 20,
                         height: 150,
                         color: '#795548'
                     });
+                }
+
+                // Ajouter des éléments décoratifs
+                if (Math.random() < 0.4) {
+                    const type = Math.random();
+                    if (type < 0.3) {
+                        // Fleurs
+                        backgroundElements.push({
+                            type: 'flower',
+                            x: nextSegmentX + Math.random() * segmentWidth,
+                            y: GROUND_LEVEL - 5,
+                            color: Math.random() < 0.5 ? '#FF69B4' : '#FFD700',
+                            size: 10 + Math.random() * 8
+                        });
+                    } else if (type < 0.5) {
+                        // Sapin
+                        backgroundElements.push({
+                            type: 'tree',
+                            x: nextSegmentX + Math.random() * segmentWidth,
+                            y: GROUND_LEVEL - 60,
+                            size: 50 + Math.random() * 40
+                        });
+                    } else if (type < 0.65) {
+                        // Randonneur
+                        backgroundElements.push({
+                            type: 'hiker',
+                            x: nextSegmentX + Math.random() * segmentWidth,
+                            y: GROUND_LEVEL - 45,
+                            direction: Math.random() < 0.5 ? 1 : -1
+                        });
+                    } else {
+                        // Groupe de trentenaires avec bières
+                        backgroundElements.push({
+                            type: 'party',
+                            x: nextSegmentX + Math.random() * (segmentWidth - 100),
+                            y: GROUND_LEVEL - 50
+                        });
+                    }
                 }
 
                 nextSegmentX += segmentWidth;
@@ -225,7 +285,7 @@
             if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.space = false;
         });
 
-        // Dessiner un personnage (astronaute)
+        // Dessiner un astronaute
         function drawAstronaut(x, y, direction) {
             const screenX = x - camera.x;
 
@@ -320,12 +380,142 @@
             ctx.restore();
         }
 
+        // Dessiner éléments d'arrière-plan
+        function drawBackgroundElement(element) {
+            const screenX = element.x - camera.x * 0.8; // Parallaxe
+
+            if (element.type === 'flower') {
+                // Tige
+                ctx.strokeStyle = '#4CAF50';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(screenX, element.y);
+                ctx.lineTo(screenX, element.y - element.size);
+                ctx.stroke();
+
+                // Pétales
+                ctx.fillStyle = element.color;
+                for (let i = 0; i < 5; i++) {
+                    ctx.beginPath();
+                    ctx.arc(
+                        screenX + Math.cos(i * Math.PI * 2 / 5) * element.size * 0.4,
+                        element.y - element.size + Math.sin(i * Math.PI * 2 / 5) * element.size * 0.4,
+                        element.size * 0.3,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                }
+
+                // Centre
+                ctx.fillStyle = '#FFD700';
+                ctx.beginPath();
+                ctx.arc(screenX, element.y - element.size, element.size * 0.2, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (element.type === 'tree') {
+                // Tronc
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(screenX - 5, element.y + 20, 10, 40);
+
+                // Triangles du sapin
+                ctx.fillStyle = '#228B22';
+                for (let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(screenX, element.y - i * 15);
+                    ctx.lineTo(screenX - 20 + i * 3, element.y + 20 - i * 15);
+                    ctx.lineTo(screenX + 20 - i * 3, element.y + 20 - i * 15);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            } else if (element.type === 'hiker') {
+                ctx.save();
+                ctx.translate(screenX, element.y + 20);
+                if (element.direction < 0) ctx.scale(-1, 1);
+
+                // Tête
+                ctx.fillStyle = '#FDBCB4';
+                ctx.beginPath();
+                ctx.arc(0, -15, 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Sac à dos
+                ctx.fillStyle = '#FF6347';
+                ctx.fillRect(-10, 0, 15, 20);
+
+                // Corps
+                ctx.fillStyle = '#4169E1';
+                ctx.fillRect(-6, 0, 12, 18);
+
+                // Jambes
+                ctx.fillStyle = '#2C3E50';
+                ctx.fillRect(-6, 18, 5, 12);
+                ctx.fillRect(1, 18, 5, 12);
+
+                // Bâton de randonnée
+                ctx.strokeStyle = '#8B4513';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(8, 5);
+                ctx.lineTo(10, 25);
+                ctx.stroke();
+
+                ctx.restore();
+            } else if (element.type === 'party') {
+                // Groupe de 2-3 trentenaires
+                for (let i = 0; i < 3; i++) {
+                    ctx.save();
+                    ctx.translate(screenX + i * 35, element.y + 25);
+
+                    // Tête
+                    ctx.fillStyle = '#FDBCB4';
+                    ctx.beginPath();
+                    ctx.arc(0, -18, 9, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Cheveux variés
+                    ctx.fillStyle = i === 0 ? '#8B4513' : i === 1 ? '#FFD700' : '#2C3E50';
+                    ctx.beginPath();
+                    ctx.arc(0, -20, 10, Math.PI, 0);
+                    ctx.fill();
+
+                    // T-shirt coloré
+                    const colors = ['#FF6347', '#4169E1', '#32CD32'];
+                    ctx.fillStyle = colors[i];
+                    ctx.fillRect(-8, 0, 16, 20);
+
+                    // Jambes
+                    ctx.fillStyle = '#2C3E50';
+                    ctx.fillRect(-6, 20, 5, 15);
+                    ctx.fillRect(1, 20, 5, 15);
+
+                    // Bière dans la main
+                    ctx.fillStyle = '#FFD700';
+                    ctx.fillRect(i % 2 === 0 ? 8 : -12, 8, 6, 12);
+
+                    // Mousse
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(i % 2 === 0 ? 8 : -12, 8, 6, 3);
+
+                    ctx.restore();
+                }
+
+                // Table/tonneau de guinguette
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(screenX + 40, element.y + 40, 30, 5);
+            }
+        }
+
         // Vérifier collision avec une plateforme
         function checkCollision(entity, platform) {
             return entity.x < platform.x + platform.width &&
                    entity.x + entity.width > platform.x &&
                    entity.y < platform.y + platform.height &&
                    entity.y + entity.height > platform.y;
+        }
+
+        // Vérifier si une position est au-dessus d'un trou
+        function isAboveGap(x) {
+            return gaps.some(gap => x >= gap.start && x <= gap.end);
         }
 
         // Mettre à jour la physique d'une entité
@@ -415,12 +605,10 @@
 
             girl.velocityX = GIRL_BASE_SPEED * girl.speedMultiplier;
 
-            // Sauter par-dessus les trous et obstacles
-            if (girl.x >= girl.nextJump) {
-                if (girl.onGround) {
-                    girl.velocityY = GIRL_JUMP_FORCE;
-                    girl.nextJump = girl.x + 100 + Math.random() * 400;
-                }
+            // Détecter les trous devant elle et sauter AVANT de tomber
+            const lookAhead = girl.x + 80;
+            if (isAboveGap(lookAhead) && girl.onGround) {
+                girl.velocityY = GIRL_JUMP_FORCE;
             }
 
             // Sauter automatiquement devant les murs
@@ -445,9 +633,12 @@
             }
 
             // Nettoyer les éléments hors écran
-            terrainSegments = terrainSegments.filter(seg => seg.x + seg.width > camera.x - 200);
-            platforms = platforms.filter(plat => plat.x + plat.width > camera.x - 200);
-            walls = walls.filter(wall => wall.x + wall.width > camera.x - 200);
+            const cleanupX = camera.x - 200;
+            terrainSegments = terrainSegments.filter(seg => seg.x + seg.width > cleanupX);
+            platforms = platforms.filter(plat => plat.x + plat.width > cleanupX);
+            walls = walls.filter(wall => wall.x + wall.width > cleanupX);
+            gaps = gaps.filter(gap => gap.end > cleanupX);
+            backgroundElements = backgroundElements.filter(elem => elem.x > cleanupX);
         }
 
         // Game Over
@@ -477,7 +668,6 @@
             girl.onGround = false;
             girl.speedMultiplier = 1;
             girl.nextSpeedChange = 100;
-            girl.nextJump = 200;
 
             camera.x = 0;
             score = 0;
@@ -488,20 +678,31 @@
 
         // Dessiner le terrain
         function drawTerrain() {
-            // Dessiner le ciel en arrière-plan
-            ctx.fillStyle = '#7EC850';
+            // Dessiner le ciel bleu
+            ctx.fillStyle = '#87CEEB';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Nuages
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-            for (let i = 0; i < 5; i++) {
-                const cloudX = (i * 300 - camera.x * 0.3) % (canvas.width + 200) - 100;
+            // Nuages blancs
+            ctx.fillStyle = '#FFFFFF';
+            for (let i = 0; i < 6; i++) {
+                const cloudX = (i * 280 - camera.x * 0.3) % (canvas.width + 200) - 100;
                 ctx.beginPath();
-                ctx.arc(cloudX, 80 + i * 30, 40, 0, Math.PI * 2);
-                ctx.arc(cloudX + 30, 90 + i * 30, 30, 0, Math.PI * 2);
-                ctx.arc(cloudX + 60, 85 + i * 30, 35, 0, Math.PI * 2);
+                ctx.arc(cloudX, 60 + i * 25, 35, 0, Math.PI * 2);
+                ctx.arc(cloudX + 25, 70 + i * 25, 28, 0, Math.PI * 2);
+                ctx.arc(cloudX + 50, 65 + i * 25, 32, 0, Math.PI * 2);
                 ctx.fill();
             }
+
+            // Dessiner les éléments d'arrière-plan
+            backgroundElements.forEach(elem => {
+                if (elem.x - camera.x * 0.8 > -200 && elem.x - camera.x * 0.8 < canvas.width + 200) {
+                    drawBackgroundElement(elem);
+                }
+            });
+
+            // Dessiner l'herbe de fond
+            ctx.fillStyle = '#7EC850';
+            ctx.fillRect(0, GROUND_LEVEL - 20, canvas.width, 20);
 
             // Dessiner les segments de terrain
             terrainSegments.forEach(segment => {
