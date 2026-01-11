@@ -645,8 +645,11 @@
         function updateMessages() {
             const currentDist = Math.floor(distanceTraveled / 10);
 
-            // Chercher un nouveau message
+            // Chercher un nouveau message (sauf si on est au tout début avec "BONNE ANNÉE")
             for (let msg of messages) {
+                // Skip le message distance 0 après le démarrage
+                if (msg.distance === 0 && currentDist > 0) continue;
+
                 if (currentDist >= msg.distance && (!currentMessage || currentMessage.distance < msg.distance)) {
                     currentMessage = msg;
                     messageTimer = 120; // 2 secondes à 60fps
