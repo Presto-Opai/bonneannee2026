@@ -1,23 +1,35 @@
-# 🚀 L'Astronaute et la Petite Fille
+# 🚀 Please Don't Drag Me Out.
 
-Un jeu de plateforme simple où vous incarnez un astronaute qui suit une petite fille blonde à travers un jardin.
+Un jeu de plateforme endless runner où vous incarnez un astronaute qui doit suivre une petite fille blonde à travers un jardin infini. Ne vous laissez pas distancer!
 
 ## 🎮 Comment jouer
 
-- **Flèches ← →** ou **A/D** : Se déplacer
+### Contrôles
+- **Flèches ← →** ou **A/D** : Se déplacer gauche/droite
 - **Espace** ou **Flèche ↑** ou **W** : Sauter
-- **Objectif** : Suivez la petite fille à travers les plateformes du jardin!
+- **R** ou **Espace** (après Game Over) : Rejouer
+
+### Objectif
+Suivez la petite fille sans vous faire distancer! L'écran scroll automatiquement vers la droite en suivant la fille. Si vous tombez dans un trou ou sortez de l'écran à gauche, c'est Game Over!
+
+### Gameplay
+- 🏃‍♀️ **La petite fille** court automatiquement vers la droite à vitesse variable
+- 📸 **L'écran suit** la petite fille (elle reste au 3/4 droit de l'écran)
+- 🚀 **L'astronaute** doit sauter par-dessus les trous et obstacles pour ne pas se laisser distancer
+- 🕳️ **Trous dans le sol** : Sautez sur les plateformes pour les franchir!
+- 🧱 **Barrières verticales** : Utilisez les plateformes pour passer par-dessus
+- 📊 **Score** : Chaque mètre parcouru compte! Battez votre record!
 
 ## 🌐 Jouer en ligne
 
-Le jeu sera accessible à vos amis via GitHub Pages une fois déployé.
+Le jeu est accessible à vos amis via GitHub Pages.
 
-## 🚀 Déploiement sur GitHub Pages
+### Comment déployer sur GitHub Pages:
 
-1. Committez et poussez le code sur GitHub
-2. Allez dans les paramètres du repository
-3. Dans la section "Pages", sélectionnez la branche principale comme source
-4. Le jeu sera accessible à l'URL : `https://[votre-username].github.io/[nom-du-repo]`
+1. Mergez cette branche vers votre branche principale
+2. Allez dans Settings → Pages
+3. Sélectionnez la branche principale comme source
+4. Le jeu sera accessible à : `https://[votre-username].github.io/bonneannee2026`
 
 ## 💻 Tester localement
 
@@ -25,12 +37,24 @@ Ouvrez simplement le fichier `index.html` dans votre navigateur web préféré!
 
 ## 🎨 Caractéristiques
 
-- Jeu de plateforme simple et intuitif
-- Personnages dessinés avec Canvas HTML5
-- Physique de base (gravité, sauts, collisions)
-- IA simple pour la petite fille qui se déplace automatiquement
-- Décor de jardin avec fleurs et plateformes
-- Fonctionne directement dans le navigateur, aucune installation requise!
+- **Endless Runner** : Terrain généré procéduralement à l'infini
+- **Système de caméra** : L'écran suit automatiquement la petite fille
+- **IA dynamique** : La petite fille varie sa vitesse et saute intelligemment
+- **Obstacles variés** :
+  - Trous dans le sol
+  - Plateformes flottantes
+  - Barrières verticales
+- **Score et high score** : Distance parcourue affichée en temps réel
+- **Game Over** : Écran de fin avec score et possibilité de recommencer
+- **Graphismes Canvas** : Personnages et décors dessinés en HTML5 Canvas
+- **100% autonome** : Un seul fichier HTML, aucune dépendance externe!
+
+## 🎯 Fait avec
+
+- HTML5 Canvas
+- JavaScript vanilla (pas de bibliothèques!)
+- CSS3
+- Amour ❤️
 
 ## 📱 Compatible
 
@@ -38,10 +62,6 @@ Ouvrez simplement le fichier `index.html` dans votre navigateur web préféré!
 - Ordinateurs de bureau et portables
 - Fonctionne hors ligne une fois chargé
 
-## 🎯 Fait avec
+---
 
-- HTML5 Canvas
-- JavaScript vanilla (pas de dépendances!)
-- CSS3
-
-Amusez-vous bien! 🎉
+**Amusez-vous bien et essayez de battre le high score!** 🎉

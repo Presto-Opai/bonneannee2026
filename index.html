@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>L'Astronaute et la Petite Fille</title>
+    <title>Please Don't Drag Me Out.</title>
     <style>
         * {
             margin: 0;
@@ -19,6 +19,7 @@
             min-height: 100vh;
             background: linear-gradient(to bottom, #87CEEB 0%, #98D8C8 100%);
             font-family: 'Arial', sans-serif;
+            overflow: hidden;
         }
 
         #gameCanvas {
@@ -61,9 +62,9 @@
 <body>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
     <div class="controls">
-        <h2>🚀 L'Astronaute et la Petite Fille 🌸</h2>
+        <h2>🚀 Please Don't Drag Me Out. 🌸</h2>
         <p>Contrôles: <span class="key">←</span> <span class="key">→</span> pour bouger | <span class="key">ESPACE</span> pour sauter</p>
-        <p>Mission: Suivez la petite fille à travers le jardin!</p>
+        <p>Mission: Ne vous laissez pas distancer par la petite fille!</p>
     </div>
 
     <script>
@@ -72,9 +73,19 @@
 
         // Configuration du jeu
         const GRAVITY = 0.6;
-        const JUMP_FORCE = -12;
-        const MOVE_SPEED = 4;
-        const GIRL_SPEED = 2;
+        const JUMP_FORCE = -13;
+        const PLAYER_MOVE_SPEED = 5;
+        const GIRL_BASE_SPEED = 3.5;
+        const GIRL_JUMP_FORCE = -15;
+        const GROUND_LEVEL = 520;
+        const GIRL_TARGET_X = 600; // Position cible de la fille (3/4 de l'écran)
+
+        // État du jeu
+        let gameState = 'playing'; // 'playing' ou 'gameover'
+        let camera = { x: 0 };
+        let score = 0;
+        let highScore = 0;
+        let distanceTraveled = 0;
 
         // État des touches
         const keys = {
@@ -85,14 +96,14 @@
 
         // Joueur (Astronaute)
         const player = {
-            x: 100,
+            x: 200,
             y: 300,
             width: 40,
             height: 60,
             velocityX: 0,
             velocityY: 0,
             onGround: false,
-            direction: 1 // 1 = droite, -1 = gauche
+            direction: 1
         };
 
         // Petite fille
@@ -101,32 +112,97 @@
             y: 300,
             width: 35,
             height: 55,
-            velocityX: GIRL_SPEED,
+            velocityX: GIRL_BASE_SPEED,
             velocityY: 0,
             onGround: false,
-            direction: 1
+            direction: 1,
+            speedMultiplier: 1,
+            nextSpeedChange: 100,
+            nextJump: 200
         };
 
-        // Plateformes du jardin
-        const platforms = [
-            // Sol principal
-            { x: 0, y: 550, width: 800, height: 50, color: '#5D4037' },
-            // Plateformes flottantes
-            { x: 200, y: 450, width: 150, height: 20, color: '#8D6E63' },
-            { x: 450, y: 380, width: 150, height: 20, color: '#8D6E63' },
-            { x: 100, y: 300, width: 120, height: 20, color: '#8D6E63' },
-            { x: 550, y: 280, width: 140, height: 20, color: '#8D6E63' },
-            { x: 300, y: 200, width: 200, height: 20, color: '#8D6E63' }
-        ];
+        // Terrain (segments de sol et trous)
+        let terrainSegments = [];
+        let platforms = [];
+        let walls = [];
+        let nextSegmentX = 0;
 
-        // Fleurs décoratives
-        const flowers = [
-            { x: 250, y: 530, size: 15, color: '#FF69B4' },
-            { x: 300, y: 525, size: 12, color: '#FFD700' },
-            { x: 500, y: 530, size: 14, color: '#FF1493' },
-            { x: 150, y: 528, size: 13, color: '#FF69B4' },
-            { x: 650, y: 532, size: 11, color: '#FFD700' }
-        ];
+        // Génération initiale du terrain
+        function initTerrain() {
+            terrainSegments = [];
+            platforms = [];
+            walls = [];
+            nextSegmentX = 0;
+
+            // Créer le terrain initial (zone de départ sûre)
+            for (let i = 0; i < 5; i++) {
+                generateTerrainSegment(false); // Pas de trous au début
+            }
+
+            // Continuer avec terrain normal
+            for (let i = 0; i < 20; i++) {
+                generateTerrainSegment(true);
+            }
+        }
+
+        // Générer un segment de terrain
+        function generateTerrainSegment(allowGaps) {
+            const segmentWidth = 150 + Math.random() * 100;
+
+            if (allowGaps && Math.random() < 0.3) {
+                // Créer un trou
+                const gapWidth = 80 + Math.random() * 120;
+
+                // Ajouter des plateformes au-dessus du trou
+                if (Math.random() < 0.7) {
+                    const platformCount = 1 + Math.floor(Math.random() * 2);
+                    for (let i = 0; i < platformCount; i++) {
+                        platforms.push({
+                            x: nextSegmentX + gapWidth * (i + 1) / (platformCount + 1) - 40,
+                            y: GROUND_LEVEL - 80 - Math.random() * 100,
+                            width: 80 + Math.random() * 60,
+                            height: 20,
+                            color: '#8D6E63'
+                        });
+                    }
+                }
+
+                nextSegmentX += gapWidth;
+            } else {
+                // Sol normal
+                terrainSegments.push({
+                    x: nextSegmentX,
+                    y: GROUND_LEVEL,
+                    width: segmentWidth,
+                    height: 80,
+                    color: '#5D4037'
+                });
+
+                // Parfois ajouter des plateformes flottantes
+                if (Math.random() < 0.2) {
+                    platforms.push({
+                        x: nextSegmentX + Math.random() * (segmentWidth - 100),
+                        y: GROUND_LEVEL - 100 - Math.random() * 150,
+                        width: 80 + Math.random() * 80,
+                        height: 20,
+                        color: '#8D6E63'
+                    });
+                }
+
+                // Parfois ajouter des barrières verticales
+                if (Math.random() < 0.15 && segmentWidth > 200) {
+                    walls.push({
+                        x: nextSegmentX + 50 + Math.random() * (segmentWidth - 150),
+                        y: GROUND_LEVEL - 150,
+                        width: 20,
+                        height: 150,
+                        color: '#795548'
+                    });
+                }
+
+                nextSegmentX += segmentWidth;
+            }
+        }
 
         // Gestion des événements clavier
         document.addEventListener('keydown', (e) => {
@@ -135,6 +211,11 @@
             if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
                 keys.space = true;
                 e.preventDefault();
+            }
+
+            // Restart avec R ou Espace après game over
+            if (gameState === 'gameover' && (e.key === 'r' || e.key === 'R' || e.key === ' ')) {
+                resetGame();
             }
         });
 
@@ -146,8 +227,10 @@
 
         // Dessiner un personnage (astronaute)
         function drawAstronaut(x, y, direction) {
+            const screenX = x - camera.x;
+
             ctx.save();
-            ctx.translate(x + 20, y + 30);
+            ctx.translate(screenX + 20, y + 30);
             if (direction < 0) ctx.scale(-1, 1);
 
             // Casque
@@ -191,8 +274,10 @@
 
         // Dessiner la petite fille
         function drawGirl(x, y, direction) {
+            const screenX = x - camera.x;
+
             ctx.save();
-            ctx.translate(x + 17, y + 27);
+            ctx.translate(screenX + 17, y + 27);
             if (direction < 0) ctx.scale(-1, 1);
 
             // Cheveux blonds
@@ -235,38 +320,7 @@
             ctx.restore();
         }
 
-        // Dessiner une fleur
-        function drawFlower(x, y, size, color) {
-            // Tige
-            ctx.strokeStyle = '#4CAF50';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(x, y - size);
-            ctx.stroke();
-
-            // Pétales
-            ctx.fillStyle = color;
-            for (let i = 0; i < 5; i++) {
-                ctx.beginPath();
-                ctx.arc(
-                    x + Math.cos(i * Math.PI * 2 / 5) * size * 0.4,
-                    y - size + Math.sin(i * Math.PI * 2 / 5) * size * 0.4,
-                    size * 0.3,
-                    0,
-                    Math.PI * 2
-                );
-                ctx.fill();
-            }
-
-            // Centre
-            ctx.fillStyle = '#FFD700';
-            ctx.beginPath();
-            ctx.arc(x, y - size, size * 0.2, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        // Vérifier collision avec plateforme
+        // Vérifier collision avec une plateforme
         function checkCollision(entity, platform) {
             return entity.x < platform.x + platform.width &&
                    entity.x + entity.width > platform.x &&
@@ -275,51 +329,60 @@
         }
 
         // Mettre à jour la physique d'une entité
-        function updatePhysics(entity) {
+        function updatePhysics(entity, isPlayer = false) {
             entity.velocityY += GRAVITY;
             entity.y += entity.velocityY;
             entity.x += entity.velocityX;
 
             entity.onGround = false;
 
-            // Vérifier les collisions avec les plateformes
-            platforms.forEach(platform => {
-                if (checkCollision(entity, platform)) {
+            // Collecter toutes les surfaces (terrain + plateformes)
+            const allSurfaces = [...terrainSegments, ...platforms];
+
+            // Vérifier les collisions
+            allSurfaces.forEach(surface => {
+                if (checkCollision(entity, surface)) {
                     // Collision par le bas (atterrissage)
-                    if (entity.velocityY > 0 && entity.y + entity.height - entity.velocityY <= platform.y) {
-                        entity.y = platform.y - entity.height;
+                    if (entity.velocityY > 0 && entity.y + entity.height - entity.velocityY <= surface.y + 5) {
+                        entity.y = surface.y - entity.height;
                         entity.velocityY = 0;
                         entity.onGround = true;
                     }
                     // Collision par le haut
-                    else if (entity.velocityY < 0 && entity.y - entity.velocityY >= platform.y + platform.height) {
-                        entity.y = platform.y + platform.height;
+                    else if (entity.velocityY < 0 && entity.y - entity.velocityY >= surface.y + surface.height - 5) {
+                        entity.y = surface.y + surface.height;
                         entity.velocityY = 0;
-                    }
-                    // Collision latérale
-                    if (entity.velocityX > 0) {
-                        entity.x = platform.x - entity.width;
-                    } else if (entity.velocityX < 0) {
-                        entity.x = platform.x + platform.width;
                     }
                 }
             });
 
-            // Limites du canvas
-            if (entity.x < 0) entity.x = 0;
-            if (entity.x + entity.width > canvas.width) entity.x = canvas.width - entity.width;
+            // Collision avec les murs (uniquement pour le joueur)
+            if (isPlayer) {
+                walls.forEach(wall => {
+                    if (checkCollision(entity, wall)) {
+                        // Bloquer le mouvement horizontal
+                        if (entity.velocityX > 0) {
+                            entity.x = wall.x - entity.width;
+                        } else if (entity.velocityX < 0) {
+                            entity.x = wall.x + wall.width;
+                        }
+                    }
+                });
+            }
         }
 
         // Mettre à jour le joueur
         function updatePlayer() {
+            if (gameState !== 'playing') return;
+
             player.velocityX = 0;
 
             if (keys.left) {
-                player.velocityX = -MOVE_SPEED;
+                player.velocityX = -PLAYER_MOVE_SPEED;
                 player.direction = -1;
             }
             if (keys.right) {
-                player.velocityX = MOVE_SPEED;
+                player.velocityX = PLAYER_MOVE_SPEED;
                 player.direction = 1;
             }
 
@@ -327,89 +390,238 @@
                 player.velocityY = JUMP_FORCE;
             }
 
-            updatePhysics(player);
+            updatePhysics(player, true);
+
+            // Vérifier si le joueur est sorti de l'écran (game over)
+            if (player.x < camera.x - 50) {
+                gameOver();
+            }
+
+            // Vérifier si le joueur est tombé (game over)
+            if (player.y > canvas.height + 100) {
+                gameOver();
+            }
         }
 
-        // Mettre à jour la petite fille (IA simple)
+        // Mettre à jour la petite fille (IA)
         function updateGirl() {
-            girl.velocityX = girl.direction * GIRL_SPEED;
+            if (gameState !== 'playing') return;
 
-            // Changer de direction aux bords ou aléatoirement
-            if (girl.x <= 0 || girl.x + girl.width >= canvas.width || Math.random() < 0.01) {
-                girl.direction *= -1;
+            // Varier la vitesse
+            if (girl.x >= girl.nextSpeedChange) {
+                girl.speedMultiplier = 0.7 + Math.random() * 0.8;
+                girl.nextSpeedChange = girl.x + 150 + Math.random() * 300;
             }
 
-            // Sauter occasionnellement
-            if (girl.onGround && Math.random() < 0.02) {
-                girl.velocityY = JUMP_FORCE * 0.8;
+            girl.velocityX = GIRL_BASE_SPEED * girl.speedMultiplier;
+
+            // Sauter par-dessus les trous et obstacles
+            if (girl.x >= girl.nextJump) {
+                if (girl.onGround) {
+                    girl.velocityY = GIRL_JUMP_FORCE;
+                    girl.nextJump = girl.x + 100 + Math.random() * 400;
+                }
             }
 
-            updatePhysics(girl);
+            // Sauter automatiquement devant les murs
+            walls.forEach(wall => {
+                if (wall.x > girl.x && wall.x < girl.x + 100 && girl.onGround) {
+                    girl.velocityY = GIRL_JUMP_FORCE;
+                }
+            });
+
+            updatePhysics(girl, false);
         }
 
-        // Fonction principale de jeu
-        function gameLoop() {
-            // Effacer le canvas
+        // Mettre à jour la caméra
+        function updateCamera() {
+            // La caméra suit la fille pour la garder à 3/4 de l'écran
+            const targetCameraX = girl.x - GIRL_TARGET_X;
+            camera.x = targetCameraX;
+
+            // Générer plus de terrain si nécessaire
+            while (nextSegmentX < camera.x + canvas.width + 500) {
+                generateTerrainSegment(true);
+            }
+
+            // Nettoyer les éléments hors écran
+            terrainSegments = terrainSegments.filter(seg => seg.x + seg.width > camera.x - 200);
+            platforms = platforms.filter(plat => plat.x + plat.width > camera.x - 200);
+            walls = walls.filter(wall => wall.x + wall.width > camera.x - 200);
+        }
+
+        // Game Over
+        function gameOver() {
+            gameState = 'gameover';
+            score = Math.floor(distanceTraveled / 10);
+            if (score > highScore) {
+                highScore = score;
+            }
+        }
+
+        // Reset le jeu
+        function resetGame() {
+            gameState = 'playing';
+
+            player.x = 200;
+            player.y = 300;
+            player.velocityX = 0;
+            player.velocityY = 0;
+            player.onGround = false;
+            player.direction = 1;
+
+            girl.x = 600;
+            girl.y = 300;
+            girl.velocityX = GIRL_BASE_SPEED;
+            girl.velocityY = 0;
+            girl.onGround = false;
+            girl.speedMultiplier = 1;
+            girl.nextSpeedChange = 100;
+            girl.nextJump = 200;
+
+            camera.x = 0;
+            score = 0;
+            distanceTraveled = 0;
+
+            initTerrain();
+        }
+
+        // Dessiner le terrain
+        function drawTerrain() {
+            // Dessiner le ciel en arrière-plan
             ctx.fillStyle = '#7EC850';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Dessiner le ciel et nuages
+            // Nuages
             ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.beginPath();
-            ctx.arc(150, 80, 40, 0, Math.PI * 2);
-            ctx.arc(180, 90, 30, 0, Math.PI * 2);
-            ctx.arc(210, 85, 35, 0, Math.PI * 2);
-            ctx.fill();
+            for (let i = 0; i < 5; i++) {
+                const cloudX = (i * 300 - camera.x * 0.3) % (canvas.width + 200) - 100;
+                ctx.beginPath();
+                ctx.arc(cloudX, 80 + i * 30, 40, 0, Math.PI * 2);
+                ctx.arc(cloudX + 30, 90 + i * 30, 30, 0, Math.PI * 2);
+                ctx.arc(cloudX + 60, 85 + i * 30, 35, 0, Math.PI * 2);
+                ctx.fill();
+            }
 
-            ctx.beginPath();
-            ctx.arc(550, 120, 35, 0, Math.PI * 2);
-            ctx.arc(580, 110, 40, 0, Math.PI * 2);
-            ctx.arc(610, 115, 30, 0, Math.PI * 2);
-            ctx.fill();
+            // Dessiner les segments de terrain
+            terrainSegments.forEach(segment => {
+                const screenX = segment.x - camera.x;
+                ctx.fillStyle = segment.color;
+                ctx.fillRect(screenX, segment.y, segment.width, segment.height);
 
-            // Dessiner les fleurs
-            flowers.forEach(flower => {
-                drawFlower(flower.x, flower.y, flower.size, flower.color);
+                // Herbe sur le sol
+                ctx.fillStyle = '#4CAF50';
+                for (let i = 0; i < segment.width; i += 10) {
+                    ctx.fillRect(screenX + i, segment.y - 5, 2, 5);
+                    ctx.fillRect(screenX + i + 4, segment.y - 7, 2, 7);
+                    ctx.fillRect(screenX + i + 7, segment.y - 4, 2, 4);
+                }
             });
 
             // Dessiner les plateformes
             platforms.forEach(platform => {
+                const screenX = platform.x - camera.x;
                 ctx.fillStyle = platform.color;
-                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+                ctx.fillRect(screenX, platform.y, platform.width, platform.height);
 
                 // Herbe sur les plateformes
-                if (platform.y < 550) {
-                    ctx.fillStyle = '#4CAF50';
-                    for (let i = 0; i < platform.width; i += 10) {
-                        ctx.fillRect(platform.x + i, platform.y - 5, 2, 5);
-                        ctx.fillRect(platform.x + i + 4, platform.y - 7, 2, 7);
-                        ctx.fillRect(platform.x + i + 7, platform.y - 4, 2, 4);
-                    }
+                ctx.fillStyle = '#4CAF50';
+                for (let i = 0; i < platform.width; i += 10) {
+                    ctx.fillRect(screenX + i, platform.y - 5, 2, 5);
+                    ctx.fillRect(screenX + i + 4, platform.y - 7, 2, 7);
+                    ctx.fillRect(screenX + i + 7, platform.y - 4, 2, 4);
                 }
             });
 
-            // Mettre à jour et dessiner les personnages
-            updatePlayer();
-            updateGirl();
+            // Dessiner les murs
+            walls.forEach(wall => {
+                const screenX = wall.x - camera.x;
+                ctx.fillStyle = wall.color;
+                ctx.fillRect(screenX, wall.y, wall.width, wall.height);
 
+                // Texture de brique
+                ctx.strokeStyle = '#5D4037';
+                ctx.lineWidth = 1;
+                for (let y = 0; y < wall.height; y += 20) {
+                    for (let x = 0; x < wall.width; x += 20) {
+                        ctx.strokeRect(screenX + x, wall.y + y, 20, 20);
+                    }
+                }
+            });
+        }
+
+        // Dessiner le HUD (score, etc.)
+        function drawHUD() {
+            // Score actuel (distance)
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(10, 10, 200, 40);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Distance: ${Math.floor(distanceTraveled / 10)}m`, 20, 38);
+
+            // High Score
+            if (highScore > 0) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(canvas.width - 210, 10, 200, 40);
+                ctx.fillStyle = '#FFD700';
+                ctx.font = 'bold 20px Arial';
+                ctx.textAlign = 'right';
+                ctx.fillText(`Best: ${highScore}m`, canvas.width - 20, 36);
+            }
+        }
+
+        // Dessiner l'écran de game over
+        function drawGameOver() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 80);
+
+            ctx.font = 'bold 36px Arial';
+            ctx.fillStyle = '#FFD700';
+            ctx.fillText(`Distance: ${score}m`, canvas.width / 2, canvas.height / 2 - 10);
+
+            if (score === highScore && score > 0) {
+                ctx.fillStyle = '#FF69B4';
+                ctx.font = 'bold 28px Arial';
+                ctx.fillText('🌟 NOUVEAU RECORD! 🌟', canvas.width / 2, canvas.height / 2 + 40);
+            }
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '24px Arial';
+            ctx.fillText('Appuyez sur ESPACE ou R pour rejouer', canvas.width / 2, canvas.height / 2 + 100);
+        }
+
+        // Fonction principale de jeu
+        function gameLoop() {
+            if (gameState === 'playing') {
+                updatePlayer();
+                updateGirl();
+                updateCamera();
+
+                // Mettre à jour le score (distance)
+                distanceTraveled = girl.x;
+            }
+
+            // Dessiner tout
+            drawTerrain();
             drawGirl(girl.x, girl.y, girl.direction);
             drawAstronaut(player.x, player.y, player.direction);
+            drawHUD();
 
-            // Calculer la distance entre l'astronaute et la fille
-            const distance = Math.abs(player.x - girl.x);
-
-            // Afficher un message si l'astronaute est proche
-            if (distance < 80) {
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                ctx.font = 'bold 20px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('💫 Vous suivez bien! 💫', canvas.width / 2, 50);
+            if (gameState === 'gameover') {
+                drawGameOver();
             }
 
             requestAnimationFrame(gameLoop);
         }
 
-        // Démarrer le jeu
+        // Initialiser et démarrer le jeu
+        initTerrain();
         gameLoop();
     </script>
 </body>
