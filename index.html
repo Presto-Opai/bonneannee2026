@@ -253,7 +253,7 @@
                 // Éléments décoratifs
                 if (Math.random() < 0.5) {
                     const type = Math.random();
-                    const peopleDensity = getPeopleDensityForSegment(currentDistance);
+                    const peopleDensity = getPeopleDensityForSegment(nextSegmentX / 10);
                     
                     if (type < 0.3) {
                         backgroundElements.push({
