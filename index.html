@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L'Astronaute et la Petite Fille</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #87CEEB 0%, #98D8C8 100%);
+            font-family: 'Arial', sans-serif;
+        }
+
+        #gameCanvas {
+            border: 4px solid #5D4037;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            background: #7EC850;
+        }
+
+        .controls {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 10px;
+            text-align: center;
+            max-width: 800px;
+        }
+
+        .controls h2 {
+            color: #5D4037;
+            margin-bottom: 10px;
+        }
+
+        .controls p {
+            color: #333;
+            margin: 5px 0;
+        }
+
+        .key {
+            display: inline-block;
+            padding: 5px 10px;
+            background: #fff;
+            border: 2px solid #333;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 0 3px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div class="controls">
+        <h2>🚀 L'Astronaute et la Petite Fille 🌸</h2>
+        <p>Contrôles: <span class="key">←</span> <span class="key">→</span> pour bouger | <span class="key">ESPACE</span> pour sauter</p>
+        <p>Mission: Suivez la petite fille à travers le jardin!</p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Configuration du jeu
+        const GRAVITY = 0.6;
+        const JUMP_FORCE = -12;
+        const MOVE_SPEED = 4;
+        const GIRL_SPEED = 2;
+
+        // État des touches
+        const keys = {
+            left: false,
+            right: false,
+            space: false
+        };
+
+        // Joueur (Astronaute)
+        const player = {
+            x: 100,
+            y: 300,
+            width: 40,
+            height: 60,
+            velocityX: 0,
+            velocityY: 0,
+            onGround: false,
+            direction: 1 // 1 = droite, -1 = gauche
+        };
+
+        // Petite fille
+        const girl = {
+            x: 600,
+            y: 300,
+            width: 35,
+            height: 55,
+            velocityX: GIRL_SPEED,
+            velocityY: 0,
+            onGround: false,
+            direction: 1
+        };
+
+        // Plateformes du jardin
+        const platforms = [
+            // Sol principal
+            { x: 0, y: 550, width: 800, height: 50, color: '#5D4037' },
+            // Plateformes flottantes
+            { x: 200, y: 450, width: 150, height: 20, color: '#8D6E63' },
+            { x: 450, y: 380, width: 150, height: 20, color: '#8D6E63' },
+            { x: 100, y: 300, width: 120, height: 20, color: '#8D6E63' },
+            { x: 550, y: 280, width: 140, height: 20, color: '#8D6E63' },
+            { x: 300, y: 200, width: 200, height: 20, color: '#8D6E63' }
+        ];
+
+        // Fleurs décoratives
+        const flowers = [
+            { x: 250, y: 530, size: 15, color: '#FF69B4' },
+            { x: 300, y: 525, size: 12, color: '#FFD700' },
+            { x: 500, y: 530, size: 14, color: '#FF1493' },
+            { x: 150, y: 528, size: 13, color: '#FF69B4' },
+            { x: 650, y: 532, size: 11, color: '#FFD700' }
+        ];
+
+        // Gestion des événements clavier
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+            if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                keys.space = true;
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+            if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.space = false;
+        });
+
+        // Dessiner un personnage (astronaute)
+        function drawAstronaut(x, y, direction) {
+            ctx.save();
+            ctx.translate(x + 20, y + 30);
+            if (direction < 0) ctx.scale(-1, 1);
+
+            // Casque
+            ctx.fillStyle = '#E0E0E0';
+            ctx.beginPath();
+            ctx.arc(0, -20, 18, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Vitre du casque
+            ctx.fillStyle = '#64B5F6';
+            ctx.beginPath();
+            ctx.arc(0, -20, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Corps
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(-12, 0, 24, 30);
+
+            // Détails de la combinaison
+            ctx.fillStyle = '#FF5252';
+            ctx.fillRect(-12, 10, 24, 3);
+            ctx.fillRect(-12, 18, 24, 3);
+
+            // Bras
+            ctx.fillStyle = '#E0E0E0';
+            ctx.fillRect(-18, 5, 6, 20);
+            ctx.fillRect(12, 5, 6, 20);
+
+            // Jambes
+            ctx.fillStyle = '#BDBDBD';
+            ctx.fillRect(-10, 30, 8, 20);
+            ctx.fillRect(2, 30, 8, 20);
+
+            // Bottes
+            ctx.fillStyle = '#424242';
+            ctx.fillRect(-10, 48, 8, 8);
+            ctx.fillRect(2, 48, 8, 8);
+
+            ctx.restore();
+        }
+
+        // Dessiner la petite fille
+        function drawGirl(x, y, direction) {
+            ctx.save();
+            ctx.translate(x + 17, y + 27);
+            if (direction < 0) ctx.scale(-1, 1);
+
+            // Cheveux blonds
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.arc(0, -18, 14, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Tête
+            ctx.fillStyle = '#FDBCB4';
+            ctx.beginPath();
+            ctx.arc(0, -18, 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Robe rose
+            ctx.fillStyle = '#FF69B4';
+            ctx.beginPath();
+            ctx.moveTo(-10, 0);
+            ctx.lineTo(10, 0);
+            ctx.lineTo(12, 25);
+            ctx.lineTo(-12, 25);
+            ctx.closePath();
+            ctx.fill();
+
+            // Bras
+            ctx.fillStyle = '#FDBCB4';
+            ctx.fillRect(-14, 2, 4, 15);
+            ctx.fillRect(10, 2, 4, 15);
+
+            // Jambes
+            ctx.fillStyle = '#FDBCB4';
+            ctx.fillRect(-7, 25, 5, 18);
+            ctx.fillRect(2, 25, 5, 18);
+
+            // Chaussures
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(-7, 42, 5, 5);
+            ctx.fillRect(2, 42, 5, 5);
+
+            ctx.restore();
+        }
+
+        // Dessiner une fleur
+        function drawFlower(x, y, size, color) {
+            // Tige
+            ctx.strokeStyle = '#4CAF50';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, y - size);
+            ctx.stroke();
+
+            // Pétales
+            ctx.fillStyle = color;
+            for (let i = 0; i < 5; i++) {
+                ctx.beginPath();
+                ctx.arc(
+                    x + Math.cos(i * Math.PI * 2 / 5) * size * 0.4,
+                    y - size + Math.sin(i * Math.PI * 2 / 5) * size * 0.4,
+                    size * 0.3,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
+
+            // Centre
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.arc(x, y - size, size * 0.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Vérifier collision avec plateforme
+        function checkCollision(entity, platform) {
+            return entity.x < platform.x + platform.width &&
+                   entity.x + entity.width > platform.x &&
+                   entity.y < platform.y + platform.height &&
+                   entity.y + entity.height > platform.y;
+        }
+
+        // Mettre à jour la physique d'une entité
+        function updatePhysics(entity) {
+            entity.velocityY += GRAVITY;
+            entity.y += entity.velocityY;
+            entity.x += entity.velocityX;
+
+            entity.onGround = false;
+
+            // Vérifier les collisions avec les plateformes
+            platforms.forEach(platform => {
+                if (checkCollision(entity, platform)) {
+                    // Collision par le bas (atterrissage)
+                    if (entity.velocityY > 0 && entity.y + entity.height - entity.velocityY <= platform.y) {
+                        entity.y = platform.y - entity.height;
+                        entity.velocityY = 0;
+                        entity.onGround = true;
+                    }
+                    // Collision par le haut
+                    else if (entity.velocityY < 0 && entity.y - entity.velocityY >= platform.y + platform.height) {
+                        entity.y = platform.y + platform.height;
+                        entity.velocityY = 0;
+                    }
+                    // Collision latérale
+                    if (entity.velocityX > 0) {
+                        entity.x = platform.x - entity.width;
+                    } else if (entity.velocityX < 0) {
+                        entity.x = platform.x + platform.width;
+                    }
+                }
+            });
+
+            // Limites du canvas
+            if (entity.x < 0) entity.x = 0;
+            if (entity.x + entity.width > canvas.width) entity.x = canvas.width - entity.width;
+        }
+
+        // Mettre à jour le joueur
+        function updatePlayer() {
+            player.velocityX = 0;
+
+            if (keys.left) {
+                player.velocityX = -MOVE_SPEED;
+                player.direction = -1;
+            }
+            if (keys.right) {
+                player.velocityX = MOVE_SPEED;
+                player.direction = 1;
+            }
+
+            if (keys.space && player.onGround) {
+                player.velocityY = JUMP_FORCE;
+            }
+
+            updatePhysics(player);
+        }
+
+        // Mettre à jour la petite fille (IA simple)
+        function updateGirl() {
+            girl.velocityX = girl.direction * GIRL_SPEED;
+
+            // Changer de direction aux bords ou aléatoirement
+            if (girl.x <= 0 || girl.x + girl.width >= canvas.width || Math.random() < 0.01) {
+                girl.direction *= -1;
+            }
+
+            // Sauter occasionnellement
+            if (girl.onGround && Math.random() < 0.02) {
+                girl.velocityY = JUMP_FORCE * 0.8;
+            }
+
+            updatePhysics(girl);
+        }
+
+        // Fonction principale de jeu
+        function gameLoop() {
+            // Effacer le canvas
+            ctx.fillStyle = '#7EC850';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Dessiner le ciel et nuages
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.arc(150, 80, 40, 0, Math.PI * 2);
+            ctx.arc(180, 90, 30, 0, Math.PI * 2);
+            ctx.arc(210, 85, 35, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(550, 120, 35, 0, Math.PI * 2);
+            ctx.arc(580, 110, 40, 0, Math.PI * 2);
+            ctx.arc(610, 115, 30, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Dessiner les fleurs
+            flowers.forEach(flower => {
+                drawFlower(flower.x, flower.y, flower.size, flower.color);
+            });
+
+            // Dessiner les plateformes
+            platforms.forEach(platform => {
+                ctx.fillStyle = platform.color;
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+
+                // Herbe sur les plateformes
+                if (platform.y < 550) {
+                    ctx.fillStyle = '#4CAF50';
+                    for (let i = 0; i < platform.width; i += 10) {
+                        ctx.fillRect(platform.x + i, platform.y - 5, 2, 5);
+                        ctx.fillRect(platform.x + i + 4, platform.y - 7, 2, 7);
+                        ctx.fillRect(platform.x + i + 7, platform.y - 4, 2, 4);
+                    }
+                }
+            });
+
+            // Mettre à jour et dessiner les personnages
+            updatePlayer();
+            updateGirl();
+
+            drawGirl(girl.x, girl.y, girl.direction);
+            drawAstronaut(player.x, player.y, player.direction);
+
+            // Calculer la distance entre l'astronaute et la fille
+            const distance = Math.abs(player.x - girl.x);
+
+            // Afficher un message si l'astronaute est proche
+            if (distance < 80) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.font = 'bold 20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('💫 Vous suivez bien! 💫', canvas.width / 2, 50);
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Démarrer le jeu
+        gameLoop();
+    </script>
+</body>
+</html>
