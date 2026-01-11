@@ -73,7 +73,7 @@
         const GRAVITY = 0.6;
         const JUMP_FORCE = -13;
         const PLAYER_MOVE_SPEED = 8; // Augmenté de 5 à 8 pour suivre le scroll
-        const GIRL_BASE_SPEED = 3.5;
+        const GIRL_BASE_SPEED = 3.5*0.75;
         const GIRL_JUMP_FORCE = -15;
         const GROUND_LEVEL = 520;
         const GIRL_TARGET_X = 600;
@@ -112,24 +112,24 @@
         // Joueur (Astronaute)
         const player = {
             x: 200,
-            y: 300,
+            y: GROUND_LEVEL-60,
             width: 40,
             height: 60,
             velocityX: 0,
             velocityY: 0,
-            onGround: false,
+            onGround: true,
             direction: 1
         };
 
         // Petite fille
         const girl = {
             x: 600,
-            y: 300,
+            y: GROUND_LEVEL-55,
             width: 35,
             height: 55,
             velocityX: GIRL_BASE_SPEED,
             velocityY: 0,
-            onGround: false,
+            onGround: true,
             direction: 1,
             speedMultiplier: 1,
             nextSpeedChange: 100
@@ -163,6 +163,17 @@
             // Terrain normal
             for (let i = 0; i < 20; i++) {
                 generateTerrainSegment(true);
+            }
+        }
+
+        function getPeopleDensityForSegment(distanceInMeters) {
+            if (distanceInMeters <= 200) {
+                return 0;  // 0% dans les premiers 200m
+            } else if (distanceInMeters >= 1200) {
+                return 0.8;  // 80% à partir de 1200m
+            } else {
+            // Interpolation linéaire entre 200m et 1200m
+                return 0.8 * (distanceInMeters - 200) / (1200 - 200);
             }
         }
 
@@ -242,6 +253,8 @@
                 // Éléments décoratifs
                 if (Math.random() < 0.5) {
                     const type = Math.random();
+                    const peopleDensity = getPeopleDensityForSegment(currentDistance);
+                    
                     if (type < 0.3) {
                         backgroundElements.push({
                             type: 'flower',
@@ -257,14 +270,14 @@
                             y: GROUND_LEVEL - 60,
                             size: 50 + Math.random() * 40
                         });
-                    } else if (type < 0.7) {
+                    } else if (type < 0.5 + peopleDensity * 0.25) {
                         backgroundElements.push({
                             type: 'hiker',
                             x: nextSegmentX + Math.random() * segmentWidth,
                             y: GROUND_LEVEL - 45,
                             direction: Math.random() < 0.5 ? 1 : -1
                         });
-                    } else {
+                    } else if (type < 0.5 + peopleDensity * 0.5)  {
                         backgroundElements.push({
                             type: 'party',
                             x: nextSegmentX + Math.random() * (segmentWidth - 120),
@@ -553,7 +566,7 @@
             if (gameState !== 'playing') return;
 
             // Accélération progressive ENCORE PLUS RAPIDE pour compenser la fille
-            const speedBonus = distanceTraveled / 1200; // Accélère beaucoup plus vite (était 1800)
+            const speedBonus = distanceTraveled / 1600; // Accélère beaucoup plus vite (était 1800)
 
             player.velocityX = 0;
 
@@ -585,7 +598,7 @@
             if (gameState !== 'playing') return;
 
             // Accélération progressive SANS LIMITE
-            const speedBonus = distanceTraveled / 3000; // Augmente indéfiniment
+            const speedBonus = distanceTraveled / 4000 ; // Augmente indéfiniment
 
             if (girl.x >= girl.nextSpeedChange) {
                 girl.speedMultiplier = 0.7 + Math.random() * 0.8 + speedBonus;
@@ -688,17 +701,17 @@
             gameState = 'playing';
 
             player.x = 200;
-            player.y = 300;
+            player.y = GROUND_LEVEL - player.height;
+            player.onGround = true;
             player.velocityX = 0;
             player.velocityY = 0;
-            player.onGround = false;
             player.direction = 1;
 
             girl.x = 600;
-            girl.y = 300;
+            girl.y = GROUND_LEVEL - girl.height;
             girl.velocityX = GIRL_BASE_SPEED;
             girl.velocityY = 0;
-            girl.onGround = false;
+            girl.onGround = true;
             girl.speedMultiplier = 1;
             girl.nextSpeedChange = 100;
 
@@ -730,8 +743,11 @@
                 }
             });
 
-            ctx.fillStyle = '#7EC850';
-            ctx.fillRect(0, GROUND_LEVEL - 20, canvas.width, 20);
+            terrainSegments.forEach(segment => {
+                const screenX = segment.x - camera.x;
+                ctx.fillStyle = '#7EC850';
+                ctx.fillRect(screenX, GROUND_LEVEL - 20, segment.width, 20);
+            });
 
             terrainSegments.forEach(segment => {
                 const screenX = segment.x - camera.x;
