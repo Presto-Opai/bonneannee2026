@@ -74,7 +74,7 @@
         // Configuration du jeu
         const GRAVITY = 0.6;
         const JUMP_FORCE = -13;
-        const PLAYER_MOVE_SPEED = 5;
+        const PLAYER_MOVE_SPEED = 8; // Augmenté de 5 à 8 pour suivre le scroll
         const GIRL_BASE_SPEED = 3.5;
         const GIRL_JUMP_FORCE = -15;
         const GROUND_LEVEL = 520;
@@ -94,6 +94,7 @@
 
         // Messages d'encouragement
         const messages = [
+            { distance: 0, text: "BONNE ANNÉE! 🎉", color: '#FFD700' },
             { distance: 50, text: "Bien joué! Continue! 💪", color: '#4CAF50' },
             { distance: 100, text: "Tu assures! 🔥", color: '#FF9800' },
             { distance: 200, text: "Incroyable! 🌟", color: '#9C27B0' },
@@ -152,8 +153,9 @@
             gaps = [];
             backgroundElements = [];
             nextSegmentX = 0;
-            currentMessage = null;
-            messageTimer = 0;
+            // Afficher "BONNE ANNÉE" au démarrage
+            currentMessage = messages[0];
+            messageTimer = 180; // 3 secondes pour bien voir le message
 
             // Zone de départ sûre
             for (let i = 0; i < 5; i++) {
@@ -552,8 +554,8 @@
         function updatePlayer() {
             if (gameState !== 'playing') return;
 
-            // Accélération progressive sans limite
-            const speedBonus = distanceTraveled / 3000; // Augmente indéfiniment
+            // Accélération progressive RAPIDE pour suivre le scroll
+            const speedBonus = distanceTraveled / 1800; // Accélère plus vite (était 3000)
 
             player.velocityX = 0;
 
