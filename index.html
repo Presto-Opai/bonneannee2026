@@ -554,8 +554,8 @@
         function updatePlayer() {
             if (gameState !== 'playing') return;
 
-            // Accélération progressive RAPIDE pour suivre le scroll
-            const speedBonus = distanceTraveled / 1800; // Accélère plus vite (était 3000)
+            // Accélération progressive ENCORE PLUS RAPIDE pour compenser la fille
+            const speedBonus = distanceTraveled / 1200; // Accélère beaucoup plus vite (était 1800)
 
             player.velocityX = 0;
 
@@ -622,6 +622,20 @@
             });
 
             updatePhysics(girl, false);
+
+            // FILET DE SÉCURITÉ ABSOLU: Rebond à mi-hauteur du sol
+            // Si la fille descend en dessous de H/2, elle rebondit automatiquement
+            const halfGroundHeight = GROUND_LEVEL - 40; // H/2 = 40px au-dessus du sol
+            if (girl.y > halfGroundHeight && girl.velocityY > 0) {
+                girl.y = halfGroundHeight;
+                girl.velocityY = GIRL_JUMP_FORCE; // Rebond immédiat
+            }
+
+            // FILET DE SÉCURITÉ ULTIME: Si elle tombe quand même, la téléporter
+            if (girl.y > GROUND_LEVEL - girl.height) {
+                girl.y = GROUND_LEVEL - girl.height - 10;
+                girl.velocityY = GIRL_JUMP_FORCE;
+            }
         }
 
         function updateCamera() {
