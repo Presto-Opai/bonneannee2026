@@ -89,6 +89,7 @@
         let animationFrame = 0; // Pour les animations
         let currentMessage = null;
         let messageTimer = 0;
+        let lastShownMessageIndex = -1; // Track du dernier message affiché pour éviter les flashs
 
         // Messages d'encouragement
         const messages = [
@@ -112,9 +113,9 @@
         // Joueur (Astronaute)
         const player = {
             x: 200,
-            y: GROUND_LEVEL-60,
+            y: GROUND_LEVEL-86,
             width: 40,
-            height: 60,
+            height: 86,
             velocityX: 0,
             velocityY: 0,
             onGround: true,
@@ -124,9 +125,9 @@
         // Petite fille
         const girl = {
             x: 600,
-            y: GROUND_LEVEL-55,
+            y: GROUND_LEVEL-74,
             width: 35,
-            height: 55,
+            height: 74,
             velocityX: GIRL_BASE_SPEED,
             velocityY: 0,
             onGround: true,
@@ -154,6 +155,7 @@
             // Afficher "BONNE ANNÉE" au démarrage
             currentMessage = messages[0];
             messageTimer = 180; // 3 secondes pour bien voir le message
+            lastShownMessageIndex = 0; // Marquer le premier message comme affiché
 
             // Zone de départ sûre
             for (let i = 0; i < 5; i++) {
@@ -670,14 +672,17 @@
         function updateMessages() {
             const currentDist = Math.floor(distanceTraveled / 10);
 
-            // Chercher un nouveau message (sauf si on est au tout début avec "BONNE ANNÉE")
-            for (let msg of messages) {
-                // Skip le message distance 0 après le démarrage
-                if (msg.distance === 0 && currentDist > 0) continue;
+            // Chercher un nouveau message - seulement si c'est un message qu'on n'a pas encore affiché
+            for (let i = 0; i < messages.length; i++) {
+                const msg = messages[i];
 
-                if (currentDist >= msg.distance && (!currentMessage || currentMessage.distance < msg.distance)) {
+                // Ne jamais revenir à un message déjà affiché
+                if (i <= lastShownMessageIndex) continue;
+
+                if (currentDist >= msg.distance) {
                     currentMessage = msg;
                     messageTimer = 120; // 2 secondes à 60fps
+                    lastShownMessageIndex = i;
                     break;
                 }
             }
@@ -701,14 +706,14 @@
             gameState = 'playing';
 
             player.x = 200;
-            player.y = GROUND_LEVEL - player.height;
+            player.y = GROUND_LEVEL - 86;
             player.onGround = true;
             player.velocityX = 0;
             player.velocityY = 0;
             player.direction = 1;
 
             girl.x = 600;
-            girl.y = GROUND_LEVEL - girl.height;
+            girl.y = GROUND_LEVEL - 74;
             girl.velocityX = GIRL_BASE_SPEED;
             girl.velocityY = 0;
             girl.onGround = true;
@@ -719,6 +724,7 @@
             score = 0;
             distanceTraveled = 0;
             animationFrame = 0;
+            lastShownMessageIndex = -1; // Reset pour permettre de revoir les messages
 
             initTerrain();
         }
@@ -753,26 +759,14 @@
                 const screenX = segment.x - camera.x;
                 ctx.fillStyle = segment.color;
                 ctx.fillRect(screenX, segment.y, segment.width, segment.height);
-
-                ctx.fillStyle = '#4CAF50';
-                for (let i = 0; i < segment.width; i += 10) {
-                    ctx.fillRect(screenX + i, segment.y - 5, 2, 5);
-                    ctx.fillRect(screenX + i + 4, segment.y - 7, 2, 7);
-                    ctx.fillRect(screenX + i + 7, segment.y - 4, 2, 4);
-                }
+                // Les herbes sont dessinées séparément dans drawGrass() pour être au-dessus des personnages
             });
 
             platforms.forEach(platform => {
                 const screenX = platform.x - camera.x;
                 ctx.fillStyle = platform.color;
                 ctx.fillRect(screenX, platform.y, platform.width, platform.height);
-
-                ctx.fillStyle = '#4CAF50';
-                for (let i = 0; i < platform.width; i += 10) {
-                    ctx.fillRect(screenX + i, platform.y - 5, 2, 5);
-                    ctx.fillRect(screenX + i + 4, platform.y - 7, 2, 7);
-                    ctx.fillRect(screenX + i + 7, platform.y - 4, 2, 4);
-                }
+                // Les herbes sont dessinées séparément dans drawGrass() pour être au-dessus des personnages
             });
 
             walls.forEach(wall => {
@@ -786,6 +780,31 @@
                     for (let x = 0; x < wall.width; x += 20) {
                         ctx.strokeRect(screenX + x, wall.y + y, 20, 20);
                     }
+                }
+            });
+        }
+
+        // Dessiner les herbes au-dessus des personnages
+        function drawGrass() {
+            // Herbes du sol
+            terrainSegments.forEach(segment => {
+                const screenX = segment.x - camera.x;
+                ctx.fillStyle = '#4CAF50';
+                for (let i = 0; i < segment.width; i += 10) {
+                    ctx.fillRect(screenX + i, segment.y - 5, 2, 5);
+                    ctx.fillRect(screenX + i + 4, segment.y - 7, 2, 7);
+                    ctx.fillRect(screenX + i + 7, segment.y - 4, 2, 4);
+                }
+            });
+
+            // Herbes des plateformes
+            platforms.forEach(platform => {
+                const screenX = platform.x - camera.x;
+                ctx.fillStyle = '#4CAF50';
+                for (let i = 0; i < platform.width; i += 10) {
+                    ctx.fillRect(screenX + i, platform.y - 5, 2, 5);
+                    ctx.fillRect(screenX + i + 4, platform.y - 7, 2, 7);
+                    ctx.fillRect(screenX + i + 7, platform.y - 4, 2, 4);
                 }
             });
         }
@@ -864,6 +883,7 @@
             drawTerrain();
             drawGirl(girl.x, girl.y, girl.direction);
             drawAstronaut(player.x, player.y, player.direction);
+            drawGrass(); // Herbes dessinées au-dessus des personnages
             drawHUD();
 
             if (gameState === 'gameover') {
