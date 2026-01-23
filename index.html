@@ -191,20 +191,15 @@
 
                 gaps.push({ start: gapStart, end: gapEnd });
 
-                // TOUJOURS des plateformes bien espacées
-                const platformCount = 2 + Math.floor(gapWidth / 80);
-                for (let i = 0; i < platformCount; i++) {
-                    const platformX = gapStart + (gapWidth / (platformCount + 1)) * (i + 1);
-                    const platformY = GROUND_LEVEL - 100 - Math.random() * 40; // Hauteur raisonnable
-
-                    platforms.push({
-                        x: platformX - 60,
-                        y: platformY,
-                        width: 100 + Math.random() * 40,
-                        height: 20,
-                        color: '#8D6E63'
-                    });
-                }
+                // Une seule plateforme centrée au-dessus du trou
+                const platformWidth = Math.min(80, gapWidth * 0.6); // Plateforme proportionnelle au trou
+                platforms.push({
+                    x: gapStart + (gapWidth - platformWidth) / 2,
+                    y: GROUND_LEVEL - 100 - Math.random() * 40,
+                    width: platformWidth,
+                    height: 20,
+                    color: '#8D6E63'
+                });
 
                 nextSegmentX += gapWidth;
             } else {
